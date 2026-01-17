@@ -431,33 +431,6 @@ export const useGanttChart = defineStore('ganttChart', {
       item.predecessor = null;
     },
 
-    // Legacy methods for backward compatibility with visualization
-    addDependency(dependency) {
-      // Check if dependency already exists
-      const exists = this.dependencies.some(
-        (dep) =>
-          dep.from === dependency.from &&
-          dep.to === dependency.to &&
-          dep.fromType === dependency.fromType &&
-          dep.toType === dependency.toType
-      );
-      if (!exists) {
-        this.dependencies.push(dependency);
-      }
-    },
-
-    removeDependency(dependency) {
-      const index = this.dependencies.findIndex(
-        (dep) =>
-          dep.from === dependency.from &&
-          dep.to === dependency.to &&
-          dep.fromType === dependency.fromType &&
-          dep.toType === dependency.toType
-      );
-      if (index > -1) {
-        this.dependencies.splice(index, 1);
-      }
-    },
   },
   
   getters: {
