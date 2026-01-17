@@ -223,6 +223,7 @@ import { storeToRefs } from "pinia";
 
 import { useGanttChart } from "@/stores/ganttChart.store";
 import { useGanttContextMenu } from "@/composables/useGanttContextMenu";
+import { useGanttDatePicker } from "@/composables/useGanttDatePicker";
 
 import OMenu from "@/components/sharedComponents/OMenu.vue";
 import moment from "moment";
@@ -241,29 +242,27 @@ const props = defineProps({
 
 const ganttChartStore = useGanttChart();
 
-// Date picker state
-const datePickerMenu = ref(null);
-const datePickerTrigger = ref(null);
-const datePickerValue = ref(null); // Will store Date object
-const datePickerTriggerStyle = ref({});
-const datePickerPlacement = ref("bottom-start");
-const currentEditingItem = ref(null);
-const currentDateType = ref(null); // 'start' or 'end'
-const datePickerJustClosed = ref(false); // Flag to prevent milestone button from showing immediately after closing
-let datePickerCloseTimeout = null;
+// Date picker composable
+const {
+  datePickerMenu,
+  datePickerTrigger,
+  datePickerValue,
+  datePickerTriggerStyle,
+  datePickerPlacement,
+  currentEditingItem,
+  currentDateType,
+  datePickerJustClosed,
+  datePickerModelValue,
+  openDatePicker,
+  closeDatePicker,
+  handleDateChange,
+  cleanup: cleanupDatePicker,
+} = useGanttDatePicker();
 
 // Tooltip state
 const tooltipVisible = ref(false);
 const tooltipText = ref("");
 const tooltipStyle = ref({});
-
-// Computed property for VueDatePicker (datePickerValue is always a Date object)
-const datePickerModelValue = computed({
-  get: () => datePickerValue.value || null,
-  set: (val) => {
-    datePickerValue.value = val;
-  },
-});
 
 
 const { phasesList, loadingItems } = storeToRefs(ganttChartStore);
@@ -422,110 +421,22 @@ const shouldIgnoreKeyEvent = (event) => {
 };
 
 
-// Helper to find item bar from event target
-const findItemBar = (target) => {
-  if (!target) return null;
-  let element = target;
-  while (element && element !== document.body) {
-    const className =
-      element.getAttribute?.("class") || element.className?.baseVal || "";
-    if (className.includes("item-group")) {
-      const children = element.children || element.childNodes;
-      for (let child of children) {
-        const childClass =
-          child.getAttribute?.("class") || child.className?.baseVal || "";
-        if (childClass.includes("item-bar") && child.tagName === "rect")
-          return child;
+// Wrapper function to handle milestone button hiding before opening date picker
+const openDatePickerWithCleanup = (item, dateType, event, itemBarElement = null) => {
+  openDatePicker(
+    item,
+    dateType,
+    event,
+    itemBarElement,
+    () => {
+      // Callback to hide milestone button before opening date picker
+      showAddMilestoneButton.value = false;
+      if (addMilestoneButtonGroup) {
+        addMilestoneButtonGroup.remove();
+        addMilestoneButtonGroup = null;
       }
     }
-    element = element.parentElement || element.parentNode;
-  }
-  return null;
-};
-
-// Date picker functions
-const openDatePicker = (item, dateType, event, itemBarElement = null) => {
-  showAddMilestoneButton.value = false;
-  if (addMilestoneButtonGroup) {
-    addMilestoneButtonGroup.remove();
-    addMilestoneButtonGroup = null;
-  }
-
-  currentEditingItem.value = item;
-  currentDateType.value = dateType;
-  datePickerValue.value = (dateType === "start" ? item.startDate : item.dueDate)
-    ? new Date(dateType === "start" ? item.startDate : item.dueDate)
-    : new Date();
-
-  if (!datePickerTrigger.value) return;
-
-  const itemBar =
-    itemBarElement || findItemBar(event?.target || event?.sourceEvent?.target);
-  if (!itemBar) return;
-
-  const rect = itemBar.getBoundingClientRect();
-  const viewportHeight = window.innerHeight;
-  const menuHeight = 300; // Approximate menu height
-  const spacing = 8;
-
-  // Check if there's space below, otherwise position above
-  const hasSpaceBelow = rect.bottom + menuHeight + spacing < viewportHeight;
-  const isTop = !hasSpaceBelow;
-
-  // Set placement based on dateType and position
-  datePickerPlacement.value = isTop
-    ? dateType === "start"
-      ? "top-start"
-      : "top-end"
-    : dateType === "start"
-    ? "bottom-start"
-    : "bottom-end";
-
-  // Position trigger at appropriate edge and vertical position
-  datePickerTriggerStyle.value = {
-    left: `${dateType === "start" ? rect.left : rect.right}px`,
-    top: `${isTop ? rect.top - spacing : rect.bottom + spacing}px`,
-  };
-
-  nextTick(() => datePickerMenu.value?.openMenu());
-};
-
-const closeDatePicker = () => {
-  datePickerMenu.value?.closeMenu();
-  currentEditingItem.value = null;
-  currentDateType.value = null;
-
-  // Set flag to prevent milestone button from showing immediately after closing
-  datePickerJustClosed.value = true;
-
-  // Clear any existing timeout
-  if (datePickerCloseTimeout) {
-    clearTimeout(datePickerCloseTimeout);
-  }
-
-  // Clear flag after delay (300ms should be enough)
-  datePickerCloseTimeout = setTimeout(() => {
-    datePickerJustClosed.value = false;
-    datePickerCloseTimeout = null;
-  }, 300);
-};
-
-const handleDateChange = (newDate) => {
-  if (!currentEditingItem.value || !currentDateType.value || !newDate) {
-    closeDatePicker();
-    return;
-  }
-
-  const dateString = moment(newDate).format("YYYY-MM-DD");
-  const isStart = currentDateType.value === "start";
-
-  ganttChartStore.updateItemTime(
-    currentEditingItem.value._id,
-    isStart ? dateString : null,
-    isStart ? null : dateString
   );
-
-  closeDatePicker();
 };
 
 
@@ -780,11 +691,8 @@ onUnmounted(() => {
     resizeObserver.disconnect();
     resizeObserver = null;
   }
-  // Clean up date picker close timeout
-  if (datePickerCloseTimeout) {
-    clearTimeout(datePickerCloseTimeout);
-    datePickerCloseTimeout = null;
-  }
+  // Clean up date picker
+  cleanupDatePicker();
   window.removeEventListener("keydown", handleKeyDown);
   window.removeEventListener("keyup", handleKeyUp);
   window.removeEventListener("blur", handleWindowBlur);
@@ -3019,7 +2927,7 @@ function renderChart() {
         .on("click", function (event) {
           event.stopPropagation();
           // D3 drag prevents clicks after drag, so this only fires on pure clicks
-          openDatePicker(item, "start", event, bar.node());
+          openDatePickerWithCleanup(item, "start", event, bar.node());
         })
         .on("mouseenter", function (event) {
           const dateText = moment(item.startDate).format("MMM DD, YYYY");
@@ -3043,7 +2951,7 @@ function renderChart() {
         .on("click", function (event) {
           event.stopPropagation();
           // D3 drag prevents clicks after drag, so this only fires on pure clicks
-          openDatePicker(item, "end", event, bar.node());
+          openDatePickerWithCleanup(item, "end", event, bar.node());
         })
         .on("mouseenter", function (event) {
           const dateText = moment(item.dueDate).format("MMM DD, YYYY");
