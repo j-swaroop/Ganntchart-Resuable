@@ -17,9 +17,9 @@ export const useGanttContextMenu = () => {
   // Context menu items
   const contextMenuItems = ref([
     { _id: 1, name: "Edit" },
-    { _id: 6, name: "Add Sub item" },
-    { _id: 5, name: "Delete" },
-    { _id: 8, name: "Duplicate Item" },
+    { _id: 2, name: "Add Sub item" },
+    { _id: 3, name: "Delete" },
+    { _id: 4, name: "Duplicate Item" },
   ]);
 
   // Context menu handlers
