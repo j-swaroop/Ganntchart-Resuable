@@ -252,6 +252,7 @@ import { useGanttChart } from "@/stores/ganttChart.store";
 import { useGanttContextMenu } from "@/composables/useGanttContextMenu";
 import { useGanttDatePicker } from "@/composables/useGanttDatePicker";
 import { useGanttZoomPan } from "@/composables/useGanttZoomPan";
+import { useGanttLazyLoading } from "@/composables/useGanttLazyLoading";
 
 import OMenu from "@/components/sharedComponents/OMenu.vue";
 import moment from "moment";
@@ -303,6 +304,7 @@ const containerRef = ref(null);
 
 let dependencyMode = false;
 let hasScrolledToToday = false; // Flag to scroll only once
+let hasStartedObserving = false; // Flag to prevent duplicate observation calls
 let xScale = null; // Store the scale for scrolling
 let resizeObserver = null; // Store observer for cleanup
 
@@ -473,9 +475,26 @@ const {
     // Trigger re-render when zoom changes
     if (svgRef.value) {
       renderChart();
+      // Re-observe after render (elements are recreated)
+      nextTick(() => {
+        if (!hasStartedObserving) return;
+        observeDateIntervals();
+      });
     }
   },
   shouldIgnoreKeyEvent,
+});
+
+// Lazy loading composable (Intersection Observer for date intervals)
+const {
+  setupHorizontalObserver,
+  observeDateIntervals,
+  cleanup: cleanupLazyLoading,
+} = useGanttLazyLoading({
+  containerRef, // Use container as root for Intersection Observer
+  xScale: computed(() => xScale), // Make reactive wrapper
+  viewMode: computed(() => props.viewMode), // Pass as computed (reactive)
+  zoomFactor,
 });
 
 
@@ -713,6 +732,14 @@ function setupResizeObserver() {
           ) {
             clearInterval(scrollCheckInterval);
             isLoading.value = false;
+            // Scroll-to-today is complete, now observe date intervals (only if not already observing)
+            if (!hasStartedObserving) {
+              nextTick(() => {
+                observeDateIntervals();
+                hasStartedObserving = true;
+                console.log('[GanttChart] Date intervals observation started after scroll-to-today completed');
+              });
+            }
           } else {
             stableChecks = isStable ? stableChecks + 1 : 0;
             lastScrollLeft = currentScrollLeft;
@@ -729,6 +756,9 @@ onMounted(async () => {
   renderChart();
   setupWindowListeners();
   setupResizeObserver();
+  
+  // Setup lazy loading (Intersection Observer for date intervals)
+  setupHorizontalObserver();
 });
 
 // Cleanup observer on component unmount
@@ -741,6 +771,8 @@ onUnmounted(() => {
   cleanupDatePicker();
   // Clean up zoom/pan
   cleanupZoomPan();
+  // Clean up lazy loading
+  cleanupLazyLoading();
   if (containerRef.value) {
     if (hideButtonOnScrollHandler) {
       containerRef.value.removeEventListener(
@@ -762,6 +794,11 @@ watch(
   () => ganttChartStore.allItems,
   () => {
     renderChart();
+    // Re-observe after render (elements are recreated)
+    nextTick(() => {
+      if (!hasStartedObserving) return;
+      observeDateIntervals();
+    });
   },
   { deep: true }
 );
@@ -775,9 +812,13 @@ watch(
       resizeObserver = null;
     }
     hasScrolledToToday = false;
+    hasStartedObserving = false; // Reset flag when view mode changes
     renderChart();
     nextTick(() => {
       setupResizeObserver();
+      // Re-observe date intervals after view mode changes
+      observeDateIntervals();
+      hasStartedObserving = true;
     });
   }
 );
@@ -2376,6 +2417,7 @@ function renderChart() {
     .join("rect")
     // .attr("x", (d) => d * dayWidth)
     .attr("class", "interval-col")
+    .attr("data-date", (d) => moment(d).toISOString()) // Add data-date for Intersection Observer
     .attr("x", (d) => x(d))
     .attr("y", 0)
     // .attr("width", dayWidth)
@@ -2408,6 +2450,7 @@ function renderChart() {
     .data(timeIntervals)
     .join("g")
     .attr("class", "interval-label-group")
+    .attr("data-date", (d) => moment(d).toISOString()) // Add data-date for Intersection Observer
     .attr("transform", (d, i) => {
       const nextInterval =
         i < timeIntervals.length - 1
