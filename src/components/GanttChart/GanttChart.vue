@@ -44,6 +44,33 @@
     </div>
 
     <div class="zoom-controls-pan-view-button-wrapper">
+      <!-- View Mode Selector -->
+      <OMenu
+        ref="viewModeMenu"
+        placement="bottom-start"
+        :close-on-outside-click="true"
+        :close-on-esc="true"
+      >
+        <template #trigger>
+          <div class="button-wrapper view-mode-button">
+            <span class="view-mode-text">{{ currentViewModeLabel }}</span>
+          </div>
+        </template>
+        <template #content>
+          <div class="view-mode-menu-content">
+            <div
+              v-for="mode in viewModes"
+              :key="mode.value"
+              class="view-mode-menu-item"
+              :class="{ 'is-active': props.viewMode === mode.value }"
+              @click="selectViewMode(mode.value)"
+            >
+              {{ mode.label }}
+            </div>
+          </div>
+        </template>
+      </OMenu>
+
       <div class="zoom-controls-wrapper">
         <div class="button-wrapper" @click="onClickZoomControl('minus')">
           <svg
@@ -240,6 +267,7 @@ const props = defineProps({
 
 // Emits
 // const emit = defineEmits(["add-milestone"]);
+const emit = defineEmits(["update:viewMode"]);
 
 const ganttChartStore = useGanttChart();
 
@@ -397,6 +425,28 @@ const shouldIgnoreKeyEvent = (event) => {
   return (
     tagName === "input" || tagName === "textarea" || target.isContentEditable
   );
+};
+
+// View mode selector
+const viewModeMenu = ref(null);
+const viewModes = [
+  { value: "daily", label: "Daily" },
+  { value: "weekly", label: "Weekly" },
+  { value: "monthly", label: "Monthly" },
+];
+
+const currentViewModeLabel = computed(() => {
+  const mode = viewModes.find((m) => m.value === props.viewMode);
+  return mode ? mode.label : "Daily";
+});
+
+const selectViewMode = (mode) => {
+  if (mode !== props.viewMode) {
+    emit("update:viewMode", mode);
+  }
+  if (viewModeMenu.value) {
+    viewModeMenu.value.closeMenu();
+  }
 };
 
 // Zoom/Pan composable
@@ -4445,6 +4495,26 @@ onMounted(async () => {
       }
     }
   }
+  .view-mode-button {
+    gap: 0.375rem;
+    cursor: pointer;
+    font-family: 'Nunito', sans-serif;
+    background: var(--white, #fff);
+    border-radius: 0.75rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    padding: 0.25rem .75rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    
+    .view-mode-text {
+      color: var(--gray-700, #374151);
+      font-size: 0.75rem;
+      font-weight: 500;
+      font-family: 'Nunito', sans-serif;
+      white-space: nowrap;
+    }
+  }
 
   .zoom-controls-pan-view-button-wrapper {
     top: 3.5rem;
@@ -4612,6 +4682,35 @@ onMounted(async () => {
   }
   100% {
     transform: rotate(360deg);
+  }
+}
+
+.view-mode-menu-content {
+  background: var(--white, #fff);
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  padding: 0.25rem;
+  min-width: 6rem;
+
+  .view-mode-menu-item {
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.375rem;
+    cursor: pointer;
+    color: var(--gray-700, #374151);
+    font-size: 0.875rem;
+    font-weight: 400;
+    font-family: 'Nunito', sans-serif;
+    transition: all 0.2s ease;
+
+    &:hover {
+      background: var(--gray-50, #f9fafb);
+    }
+
+    &.is-active {
+      background: var(--gray-100, #f3f4f6);
+      color: var(--gray-900, #111827);
+      font-weight: 600;
+    }
   }
 }
 
