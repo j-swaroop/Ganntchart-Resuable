@@ -91,19 +91,12 @@ export const useGanttContextMenu = () => {
 
     if (val.name === "Edit") {
       console.log("Edit item functionality - no implementation for now");
-      ganttChartStore.addItemDetails(selectedItem._id);
-      ganttChartStore.showSidePanel(true);
     } else if (val.name === "Delete") {
       console.log("Delete item functionality - no implementation for now");
-      await ganttChartStore.deleteItem(selectedItem._id, false);
-      await ganttChartStore.fetchItems();
     } else if (val.name === "Add Sub item") {
       console.log("Add Sub item functionality - no implementation for now");
-      ganttChartStore.addItemDetails(selectedItem._id);
-      ganttChartStore.showSidePanel(true);
     } else if (val.name === "Duplicate Item") {
       console.log("Duplicate Item functionality - no implementation for now");
-      await ganttChartStore.handleDuplicateItem(selectedItem, true, false);
     }
 
     closeContextMenu();

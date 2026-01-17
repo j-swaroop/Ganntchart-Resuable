@@ -86,14 +86,18 @@
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
+          width="12"
+          height="12"
+          viewBox="0 0 12 12"
           fill="none"
         >
           <path
-            d="M13 1.07V9h7c0 4.08-3.05 7.44-7 7.93v2.02c4.95-.5 9-4.76 9-9.95h-9V1.07zM11 1.07V11H2c0 5.19 4.05 9.45 9 9.95v-2.02c-3.95-.49-7-3.85-7-7.93h7V1.07z"
-            fill="#6B7280"
+            d="M3.4 5.5c-.3-1-.7-2.1-1.2-3.1-.2-.4-.1-.9.3-1.2.4-.3.9-.3 1.3 0 .6.5 1 1.2 1.3 1.9l.4 1.2V1.2c0-.6.5-1 1-1s1 .4 1 1v3.3l.2-2.6c.1-.5.5-.9 1-.9s1 .4 1 .9v2.4l.3-.8c.2-.4.6-.6 1-.5.4.2.6.6.5 1-.2.7-.4 1.4-.6 2.1-.2.7-.5 1.3-.9 1.9-.3.4-.5.9-.5 1.4v.8H8c-.3 0-.6-.3-.7-.5l-.3-.5-.3.5c-.1.2-.4.4-.6.4H4.2l.1-.6c0-.3-.1-.5-.3-.7L2.6 8.1c-.4-.5-.7-1-.9-1.6-.1-.3 0-.6.2-.8.2-.2.5-.3.8-.2.3 0 .6.2.7.4l.9 1.1"
+            fill="white"
+            stroke="#6B7280"
+            stroke-width="0.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
           />
         </svg>
       </div>
@@ -158,16 +162,6 @@
       </template>
       <template #content>
         <div class="gantt-date-picker-content">
-          <div class="relative-days-wrapper">
-            <div
-              v-for="item in relativeDays"
-              :key="item._id"
-              @click.stop="onClickRelativeDay(item)"
-              tabindex="0"
-            >
-              <span>{{ item.name }}</span>
-            </div>
-          </div>
           <div class="date-picker-placeholder">
             Add your date picker here
           </div>
@@ -243,7 +237,7 @@ const props = defineProps({
 });
 
 // Emits
-const emit = defineEmits(["add-milestone"]);
+// const emit = defineEmits(["add-milestone"]);
 
 const ganttChartStore = useGanttChart();
 
@@ -271,12 +265,6 @@ const datePickerModelValue = computed({
   },
 });
 
-// Relative days options
-const relativeDays = [
-  { _id: 1, name: "Today" },
-  { _id: 2, name: "Tomorrow" },
-  { _id: 3, name: "In 3 days" },
-];
 
 const { phasesList, loadingItems } = storeToRefs(ganttChartStore);
 
@@ -433,12 +421,6 @@ const shouldIgnoreKeyEvent = (event) => {
   );
 };
 
-// Relative day calculations map
-const relativeDayMap = {
-  Today: () => moment().toDate(),
-  Tomorrow: () => moment().add(1, "days").toDate(),
-  "In 3 days": () => moment().add(3, "days").toDate(),
-};
 
 // Helper to find item bar from event target
 const findItemBar = (target) => {
@@ -546,10 +528,6 @@ const handleDateChange = (newDate) => {
   closeDatePicker();
 };
 
-const onClickRelativeDay = (item) => {
-  const getDate = relativeDayMap[item.name] || relativeDayMap["Today"];
-  handleDateChange(getDate());
-};
 
 // Tooltip functions
 const showTooltip = (element, text, position = "top") => {
@@ -1740,13 +1718,9 @@ function createHorizontalDragBehavior(params) {
       setActiveDragItemId(null);
       bar.style("cursor", "grab");
 
-      // Update item dates - this will set loading state and make API call
-      // This also triggers fetchItems in background which may complete during drag
-      ganttChartStore.updateItemTime(item._id, startOfDay, endOfDay).then(() => {
-        console.log("Item time updated successfully");
-      }).catch((error) => {
-        console.error("Error updating item time:", error);
-      });
+      // Update item dates
+      ganttChartStore.updateItemTime(item._id, startOfDay, endOfDay);
+      console.log("Item time updated");
 
       // Re-render immediately to show disabled state (loading state is set synchronously in updateItemTime)
       // Also check for pending render (in case refetch completed during drag)
@@ -2393,7 +2367,7 @@ function updateAddMilestoneButton(show, x, y, svg, chart) {
       // Format as YYYY-MM-DD for the date input
       startDate = moment(dateFromX).startOf("day").format("YYYY-MM-DD");
     }
-    emit("add-milestone", { x, y, startDate });
+    console.log("add-milestone emit called with:", { x, y, startDate });
     updateAddMilestoneButton(false, 0, 0, svg, chart);
   });
   let startDate = null;
@@ -2402,7 +2376,7 @@ function updateAddMilestoneButton(show, x, y, svg, chart) {
     // Format as YYYY-MM-DD for the date input
     startDate = moment(dateFromX).startOf("day").format("YYYY-MM-DD");
   }
-  emit("add-milestone", { x, y, startDate });
+  console.log("add-milestone emit called with:", { x, y, startDate });
   updateAddMilestoneButton(false, 0, 0, svg, chart);
   showAddMilestoneButton.value = true;
   addMilestoneButtonPos.value = { x, y };
@@ -2742,35 +2716,6 @@ function renderChart() {
           `translate(${iconOffset}, ${iconOffset}) scale(${iconScale})`
         )
         .attr("class", "icon-group-path");
-      // .style("opacity", 0.7)
-      // .style("transition", "opacity 0.2s ease-in-out");
-
-      // paths
-      //   .append("path")
-      //   .attr(
-      //     "d",
-      //     "M8.00065 14.6667C11.6673 14.6667 14.6673 11.6667 14.6673 8.00004C14.6673 4.33337 11.6673 1.33337 8.00065 1.33337C4.33398 1.33337 1.33398 4.33337 1.33398 8.00004C1.33398 11.6667 4.33398 14.6667 8.00065 14.6667Z"
-      //   )
-      //   .attr("stroke", "#9CA3AF")
-      //   .attr("stroke-linecap", "round")
-      //   .attr("stroke-linejoin", "round")
-      //   .attr("fill", "none");
-
-      // paths
-      //   .append("path")
-      //   .attr("d", "M8 5.33337V8.66671")
-      //   .attr("stroke", "#9CA3AF")
-      //   .attr("stroke-linecap", "round")
-      //   .attr("stroke-linejoin", "round")
-      //   .attr("fill", "none");
-
-      // paths
-      //   .append("path")
-      //   .attr("d", "M7.99609 10.6666H8.00208")
-      //   .attr("stroke", "#9CA3AF")
-      //   .attr("stroke-linecap", "round")
-      //   .attr("stroke-linejoin", "round")
-      //   .attr("fill", "none");
 
       // Add hover handlers
       const weekStart = moment(d).startOf("week");
@@ -2834,9 +2779,7 @@ function renderChart() {
 
     phaseLabelGroup.on("click", function (event) {
       event.stopPropagation();
-      ganttChartStore.isEditItemPhase = true;
-      ganttChartStore.isEditItemPhaseObject = phaseObject;
-      ganttChartStore.onOpenAddEditItemPhasePopup = true;
+      console.log("Phase edit functionality - no implementation for now", phaseObject);
     });
     // Phase name text
     const phaseNameText = phaseLabelGroup
@@ -2861,11 +2804,7 @@ function renderChart() {
       .append("text")
       .attr("x", phaseX + phaseNameWidth + spacing)
       .attr("y", yPos)
-      .attr("fill", "var(--gray-600, #4B5563)")
-      .style("font-size", "12px")
-      .style("font-weight", 600)
-      .style("opacity", 0)
-      .style("transition", "opacity 0.3s ease-in-out")
+      .attr("class", "phase-date-range-text")
       .text(dateRangeText);
 
     const iconSpacing = 8; // Space between date and icon
@@ -2948,9 +2887,7 @@ function renderChart() {
         })
         .on("click", function (event) {
           event.stopPropagation(); // Prevent event bubbling
-          ganttChartStore.isEditItemPhase = true;
-          ganttChartStore.isEditItemPhaseObject = phaseObject;
-          ganttChartStore.onOpenAddEditItemPhasePopup = true;
+          console.log("Phase edit functionality - no implementation for now", phaseObject);
         });
     }
 
@@ -2985,6 +2922,15 @@ function renderChart() {
         orderIndex: itemIndex,
         itemGroup,
       });
+      function hexToRgb(hex) {
+        // Remove # if present
+        hex = hex.replace('#', '');
+        // Parse hex to RGB
+        const r = parseInt(hex.substring(0, 2), 16);
+        const g = parseInt(hex.substring(2, 4), 16);
+        const b = parseInt(hex.substring(4, 6), 16);
+        return { r, g, b };
+      }
       function hexToRgba(hex, opacity) {
         const { r, g, b } = hexToRgb(hex);
         return `rgba(${r}, ${g}, ${b}, ${opacity})`;
@@ -3211,11 +3157,11 @@ function renderChart() {
         .style("color", textColor)
         .text(item.title);
 
-      // Subitem count text (only if subitems exist)
-      const subitemCount = item.subitems?.length || 0;
+      // Subitem count text (only if subItems exist)
+      const subitemCount = item.subItems?.length || 0;
       const subitemCountText = itemGroup
         .append("text")
-        .attr("x", xStart + 14 + labelWidth + (subitemCount > 0 ? 10 : 0)) // Position with spacing if subitems exist
+        .attr("x", xStart + 14 + labelWidth + (subitemCount > 0 ? 10 : 0)) // Position with spacing if subItems exist
         .attr("y", yPos + 21)
         .attr("fill", textColor)
         .style("font-size", "10px")
@@ -3238,6 +3184,7 @@ function renderChart() {
         .style("font-weight", 500)
         .style("opacity", 0)
         .style("pointer-events", "none")
+        .style("font-family", "Nunito, sans-serif")
         .style("text-transform", "capitalize")
         .text(statusName);
 
@@ -3356,7 +3303,7 @@ function renderChart() {
             );
             statusText.style("opacity", 1);
           }
-          // Show subitem count on hover (only if subitems exist)
+          // Show subitem count on hover (only if subItems exist)
           if (subitemCount > 0) {
             subitemCountText.style("opacity", 0.6);
           }
@@ -3537,7 +3484,7 @@ function renderChart() {
           });
       });
 
-      // --- activate visuals while dragging (indents only + hide status/subitems) ---
+      // --- activate visuals while dragging (indents only + hide status/subItems) ---
 
       // Create unified drag handler that handles both horizontal and vertical drags
       // This is necessary because calling .call(drag) twice overrides the first one
@@ -3805,12 +3752,9 @@ function renderChart() {
             hasDragged = false;
 
             if (didDrag) {
-              // Update item start date - this will set loading state and make API call
-              ganttChartStore.updateItemTime(item._id, startOfDay, null).then(() => {
-                console.log("Item start date updated successfully");
-              }).catch((error) => {
-                console.error("Error updating item start date:", error);
-              });
+              // Update item start date
+              ganttChartStore.updateItemTime(item._id, startOfDay, null);
+              console.log("Item start date updated");
 
               // Re-render immediately to show disabled state (loading state is set synchronously in updateItemTime)
               nextTick(() => {
@@ -3937,12 +3881,9 @@ function renderChart() {
             hasDragged = false;
 
             if (didDrag) {
-              // Update item end date - this will set loading state and make API call
-              ganttChartStore.updateItemTime(item._id, null, endOfDay).then(() => {
-                console.log("Item end date updated successfully");
-              }).catch((error) => {
-                console.error("Error updating item end date:", error);
-              });
+              // Update item end date
+              ganttChartStore.updateItemTime(item._id, null, endOfDay);
+              console.log("Item end date updated");
 
               // Re-render immediately to show disabled state (loading state is set synchronously in updateItemTime)
               nextTick(() => {
@@ -4843,7 +4784,7 @@ onMounted(async () => {
 
   .start-project-schedule-buttons-wrapper {
     left: 0.875rem;
-    bottom: 4rem;
+    bottom: 1rem;
     z-index: 2;
     position: absolute;
   }
@@ -4986,12 +4927,15 @@ onMounted(async () => {
   background: #fff;
   :deep(.phase-label-group) {
     cursor: pointer;
+    font-family: 'Nunito', sans-serif;
   }
   :deep(.phase-name-text) {
     font-size: 13px;
     font-weight: 600;
     cursor: pointer;
     fill: #4b5563;
+    font-family: 'Nunito', sans-serif;
+
   }
 
   :deep(.phase-name-underline) {
@@ -5000,6 +4944,16 @@ onMounted(async () => {
     cursor: pointer;
     opacity: 0;
     transition: opacity 0.3s ease-in-out;
+
+  }
+
+  :deep(.phase-date-range-text) {
+    fill: var(--gray-600, #4B5563);
+    font-size: 12px;
+    font-weight: 600;
+    opacity: 0;
+    transition: opacity 0.3s ease-in-out;
+    font-family: 'Nunito', sans-serif;
   }
 
   :deep(.phase-label-group:hover .phase-name-underline) {
@@ -5116,37 +5070,6 @@ onMounted(async () => {
     border-radius: 8px;
     box-shadow: 0px 6px 20px 0px rgba(0, 0, 0, 0.05);
     padding: 6px !important;
-    .relative-days-wrapper {
-      display: flex;
-      align-items: flex-start;
-      gap: 0.5rem;
-      padding-left: 0.75rem;
-      padding-top: 6px;
-
-      div {
-        border-radius: 8px;
-        background: var(--gray-100, #f3f4f6);
-        box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, 0.1);
-        display: flex;
-        padding: 0.25rem 0.75rem;
-        justify-content: center;
-        align-items: center;
-        gap: 4px;
-        cursor: pointer;
-
-        &:hover {
-          background: var(--gray-200, #e5e7eb);
-        }
-
-        span {
-          color: var(--gray-600, #4b5563);
-          font-size: 0.75rem;
-          font-style: normal;
-          font-weight: 500;
-          line-height: normal;
-        }
-      }
-    }
   }
   .dp__menu {
     border: none !important;
