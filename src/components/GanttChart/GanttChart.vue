@@ -1858,7 +1858,7 @@ function createLagInputGroup({
 
     if (item.predecessor && item.predecessor.lag !== newLag) {
       // Backend handles date calculation, just update the lag
-      await ganttChartStore.updatePredecessorLag(item, newLag);
+      ganttChartStore.updatePredecessorLag(item, newLag);
       console.log("Lag updated in store");
 
       // Re-render chart to reflect changes
@@ -1896,6 +1896,7 @@ function createLagInputGroup({
     .style("outline", "none")
     .style("padding", "0")
     .style("font-size", "11px")
+    .style("font-family", "Nunito, sans-serif")
     .style("text-align", "center")
     .style("background", "transparent")
     .on("focus", function () {
@@ -5007,6 +5008,7 @@ onMounted(async () => {
     font-size: .625rem;
     fill: var(--Governor-Bay-500, #516CE0);
     pointer-events: none;
+    font-family: 'Nunito', sans-serif;
   }
 
   :deep(.lag-input-group) {

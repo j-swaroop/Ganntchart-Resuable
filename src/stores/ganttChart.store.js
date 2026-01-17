@@ -419,9 +419,12 @@ export const useGanttChart = defineStore('ganttChart', {
 
     updatePredecessorLag(item, lag) {
       if (!item || !item.predecessor) return;
-      
-      // Update local state
-      item.predecessor.lag = lag;
+      console.log("Updating predecessor lag for item:", item);
+      // Find the item in the store's state array and update it
+      const storeItem = this.items.find((i) => i._id === item._id);
+      if (storeItem && storeItem.predecessor) {
+        storeItem.predecessor.lag = lag;
+      }
     },
 
     removePredecessor(item) {
