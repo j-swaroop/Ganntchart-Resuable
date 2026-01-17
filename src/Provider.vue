@@ -15,7 +15,7 @@ if (authToken) {
 </script>
 
 <template>
-  <template v-if="auth">
+  <template v-if="true">
     <App></App>
   </template>
   <template v-else>

@@ -1,8 +1,10 @@
-<script setup></script>
+<script setup>
+import GanttChart from '@/components/GanttChart/GanttChart.vue';
+</script>
 
 <template>
   <div class="home-page-wrapper">
-    {{ $t('homeText') }}
+    <GanttChart />
   </div>
 </template>
 
