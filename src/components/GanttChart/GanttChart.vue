@@ -295,7 +295,7 @@ const tooltipText = ref("");
 const tooltipStyle = ref({});
 
 
-const { phasesList, loadingItems } = storeToRefs(ganttChartStore);
+const { phasesList, loadingItems, ganttBoundaryStartDate, ganttBoundaryEndDate } = storeToRefs(ganttChartStore);
 
 const svgRef = ref(null);
 const headerSvgRef = ref(null);
@@ -485,16 +485,17 @@ const {
   shouldIgnoreKeyEvent,
 });
 
-// Lazy loading composable (Intersection Observer for date intervals)
+// Lazy loading composable (Intersection Observer for date intervals) – same pattern as foyrmanage: pass store, composable gets boundary refs from store
 const {
   setupHorizontalObserver,
   observeDateIntervals,
   cleanup: cleanupLazyLoading,
+  setInitialFetchedRange,
 } = useGanttLazyLoading({
   containerRef, // Use container as root for Intersection Observer
-  xScale: computed(() => xScale), // Make reactive wrapper
-  viewMode: computed(() => props.viewMode), // Pass as computed (reactive)
-  zoomFactor,
+  fetchItemsAPI: async ({ startDate, endDate }) => {
+    // Call store action to fetch tasks by date range
+  },
 });
 
 
@@ -737,7 +738,6 @@ function setupResizeObserver() {
               nextTick(() => {
                 observeDateIntervals();
                 hasStartedObserving = true;
-                console.log('[GanttChart] Date intervals observation started after scroll-to-today completed');
               });
             }
           } else {
@@ -751,12 +751,29 @@ function setupResizeObserver() {
   }
 }
 
+const initializeGanttChart = async () => {
+  const pastMonth = moment().subtract(1, 'month').startOf('month');
+  const futureMonth = moment().add(1, 'month').endOf('month');
+  
+  // Format dates once and reuse
+  const startDate = pastMonth.format('YYYY-MM-DD');
+  const endDate = futureMonth.format('YYYY-MM-DD');
+  
+  console.log('[GanttChart] Initial fetch:', {
+    pastMonth: startDate,
+    futureMonth: endDate,
+    totalDays: futureMonth.diff(pastMonth, 'days')
+  });
+  
+  setInitialFetchedRange(startDate, endDate);
+};
+
 onMounted(async () => {
+  await initializeGanttChart();
   await nextTick();
   renderChart();
   setupWindowListeners();
   setupResizeObserver();
-  
   // Setup lazy loading (Intersection Observer for date intervals)
   setupHorizontalObserver();
 });
@@ -794,7 +811,7 @@ watch(
   () => ganttChartStore.allItems,
   () => {
     renderChart();
-    // Re-observe after render (elements are recreated)
+    // // Re-observe after render (elements are recreated)
     nextTick(() => {
       if (!hasStartedObserving) return;
       observeDateIntervals();
@@ -816,9 +833,6 @@ watch(
     renderChart();
     nextTick(() => {
       setupResizeObserver();
-      // Re-observe date intervals after view mode changes
-      observeDateIntervals();
-      hasStartedObserving = true;
     });
   }
 );
@@ -834,6 +848,17 @@ watch(
 );
 
 
+
+// When lazy-load observer updates store boundary dates, re-render and re-attach observer (like foyrmanage)
+watch(
+  [ganttBoundaryStartDate, ganttBoundaryEndDate],
+  () => {
+    if (!hasStartedObserving) return;
+    renderChart();
+    nextTick(() => observeDateIntervals());
+  },
+  { flush: "post" }
+);
 
 watch(
   () => containerRef.value,
@@ -2417,7 +2442,37 @@ function renderChart() {
     .join("rect")
     // .attr("x", (d) => d * dayWidth)
     .attr("class", "interval-col")
-    .attr("data-date", (d) => moment(d).toISOString()) // Add data-date for Intersection Observer
+    .attr("data-date", (d) => moment(d).format('YYYY-MM-DD')) // Add data-date for Intersection Observer
+    .attr("data-boundary", (d) => {
+      const colDate = moment(d);
+      const DATE_FORMAT = "YYYY-MM-DD";
+
+      if (props.viewMode === 'weekly') {
+        const weekStart = colDate.clone().startOf('week');
+        const weekEnd = colDate.clone().endOf('week');
+        if (moment(ganttBoundaryStartDate.value).isBetween(weekStart, weekEnd, null, '[]')) {
+          return 'start';
+        }
+        if (moment(ganttBoundaryEndDate.value).isBetween(weekStart, weekEnd, null, '[]')) {
+          return 'end';
+        }
+      } else if (props.viewMode === 'monthly') {
+        const monthStart = colDate.clone().startOf('month');
+        const monthEnd = colDate.clone().endOf('month');
+        if (moment(ganttBoundaryStartDate.value).isBetween(monthStart, monthEnd, null, '[]')) {
+          return 'start';
+        }
+        if (moment(ganttBoundaryEndDate.value).isBetween(monthStart, monthEnd, null, '[]')) {
+          return 'end';
+        }
+      } else {
+        // daily mode
+        if (colDate.format(DATE_FORMAT) === ganttBoundaryStartDate.value) return 'start';
+        if (colDate.format(DATE_FORMAT) === ganttBoundaryEndDate.value) return 'end';
+      }
+
+      return null;
+    })
     .attr("x", (d) => x(d))
     .attr("y", 0)
     // .attr("width", dayWidth)
@@ -2430,6 +2485,13 @@ function renderChart() {
     })
     .attr("height", minContentHeight)
     .attr("fill", (d, i) => (i % 2 ? columnColors[1] : columnColors[0]));
+
+
+  // Always re-attach observer to new elements
+  nextTick(() => {
+    if (!hasStartedObserving) return;
+    observeDateIntervals(); // handles start/end boundary elements
+  });
 
   // ===== RENDER HEADER (Fixed at top) =====
   const headerChart = headerSvg.append("g");

@@ -265,6 +265,8 @@ export const useGanttChart = defineStore('ganttChart', {
       }
     ], // Main data array for Gantt chart items (tasks, events, etc.)
     loadingItems: [], // Array of loading item states
+    ganttBoundaryStartDate: null, // Start boundary for lazy-load observer (YYYY-MM-DD)
+    ganttBoundaryEndDate: null, // End boundary for lazy-load observer (YYYY-MM-DD)
     dependencies: [], // Legacy dependencies array
     phasesList: [
       {
